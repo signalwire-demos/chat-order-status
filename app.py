@@ -17,22 +17,37 @@ Run:
 import logging
 
 from dotenv import load_dotenv
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from signalwire.ai_chat import AIChatClient, ChatGateway, HandoffRouter
 
 import config
 from agent import OrderStatusAgent
-from order_status import ConversationStore, OrderBook, landing
+from order_status import CallControl, ConversationStore, OrderBook, PendingNonces, landing
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
 
 
-def build(orders=None, store=None):
+def build(orders=None, store=None, calls=None):
     """Wire the agent, the gateway and the handoff routes together."""
     store = store or ConversationStore()
     orders = orders or OrderBook(config.ORDERS_FILE)
+    pending = PendingNonces()
+
+    if calls is None:
+        rest = None
+        if config.SPACE_HOST and config.PROJECT_ID and config.API_TOKEN:
+            from signalwire.rest import RestClient
+
+            rest = RestClient(
+                project=config.PROJECT_ID, token=config.API_TOKEN, host=config.SPACE_HOST
+            )
+        calls = CallControl(
+            client=rest,
+            from_number=config.FROM_NUMBER,
+            swml_url=f"{config.PUBLIC_URL}/swml",
+        )
 
     agent = OrderStatusAgent(orders=orders, store=store, host=config.HOST, port=config.PORT)
 
@@ -53,9 +68,12 @@ def build(orders=None, store=None):
         # The ordering guarantee. The new medium does not start until this
         # returns, so it must not return before the record is durable.
         capture_leg=store.capture_leg,
-        end_call=lambda call_id: logger.info("ending call %s", call_id),
-        send_message=lambda call_id, text: logger.info("say to %s: %s", call_id, text),
+        end_call=calls.end_call,
+        send_message=calls.send_message,
     )
+
+    agent.handoff = handoff
+    agent.pending = pending
 
     # include_router(prefix="/chat") puts the gateway's "POST /" at "/chat/".
     # A POST to "/chat" with no trailing slash then falls through to the
@@ -82,6 +100,38 @@ def build(orders=None, store=None):
     async def _health():
         return {"status": "healthy", "agent": "order-status"}
 
+    @fastapi_app.post("/escalate/dial", include_in_schema=False)
+    async def _dial(body: dict):
+        """The second half of text to voice: actually place the call.
+
+        /chat/escalate ends the text leg and waits for its record. This then
+        dials, carrying a nonce the browser never chose. The browser gets the
+        nonce back so it can later type into the call or hand back to text.
+        """
+        handle = (body or {}).get("handle")
+        to = (body or {}).get("to") or config.DEFAULT_DIAL_TO
+        if not handle:
+            return JSONResponse({"error": "handle required"}, status_code=400)
+        try:
+            conversation_id = gateway.read_handle(handle)
+        except Exception:
+            return JSONResponse({"error": "bad handle"}, status_code=400)
+        if not to:
+            return JSONResponse(
+                {"error": "no destination: pass 'to' or set DEFAULT_DIAL_TO"},
+                status_code=400,
+            )
+        if not calls.can_dial:
+            return JSONResponse(
+                {"error": "dialling not configured: needs credentials and FROM_NUMBER"},
+                status_code=503,
+            )
+
+        nonce = pending.issue(conversation_id)
+        calls.dial(to, nonce)
+        # The nonce is the browser's capability for this call, and nothing else.
+        return {"ok": True, "nonce": nonce, "conversation_id": conversation_id}
+
     # What the agent has established, whichever medium established it. The
     # page renders this so a viewer can watch it survive the switch, which is
     # the difference between proving plumbing and proving the product.
@@ -102,10 +152,10 @@ def build(orders=None, store=None):
 
     agent.mount(StaticFiles(directory=str(config.ROOT / "web"), html=True), prefix="/demo")
 
-    return agent, gateway, handoff, store
+    return agent, gateway, handoff, store, pending, calls
 
 
-agent, gateway, handoff, store = build()
+agent, gateway, handoff, store, pending, calls = build()
 app = agent.get_app()
 
 if __name__ == "__main__":

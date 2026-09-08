@@ -40,6 +40,13 @@ def space_host(value: str) -> str:
     return raw if "." in raw else f"{raw}.signalwire.com"
 
 
+PROJECT_ID = os.environ.get("SIGNALWIRE_PROJECT_ID", "")
+API_TOKEN = os.environ.get("SIGNALWIRE_API_TOKEN", "")
+
+# Placing a call needs a caller id we own and somewhere to send it.
+FROM_NUMBER = os.environ.get("FROM_NUMBER", "")
+DEFAULT_DIAL_TO = os.environ.get("DEFAULT_DIAL_TO", "")
+
 SPACE_NAME = space_name(SIGNALWIRE_SPACE)
 SPACE_HOST = space_host(SIGNALWIRE_SPACE)
 

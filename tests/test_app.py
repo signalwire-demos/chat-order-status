@@ -72,12 +72,12 @@ def test_chat_without_trailing_slash_redirects_rather_than_falling_through(clien
 
 
 def test_gateway_never_takes_the_config_url_from_the_browser(built):
-    _, gateway, _, _ = built
+    _, gateway, *_ = built
     assert gateway.config_url == "https://demo.example.com/swml"
 
 
 def test_handoff_waits_on_capture(built):
-    _, _, handoff, store = built
+    _, _, handoff, store, *_ = built
     # capture_leg is the ordering guarantee. Omit it and no wait happens: the
     # new medium's config fetch races a record that is still seconds away.
     assert handoff.capture_leg is not None
@@ -106,7 +106,7 @@ def test_lookup_declines_an_unknown_order(built):
 
 
 def test_lookup_remembers_for_the_other_medium(built):
-    agent, _, _, store = built
+    agent, _, _, store, *_ = built
     agent._lookup({"order_number": "4417"}, {"conversation_id": "c9"})
     # The voice leg that replaces this one opens already knowing the address.
     assert store.known("c9.1")["address"] == "12 Bridge Street, Bristol"

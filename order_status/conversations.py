@@ -28,7 +28,13 @@ class Leg:
     captured: bool = False
 
     def add(self, role: str, text: str) -> None:
-        self.messages.append({"role": role, "text": text})
+        """Stamp the medium now, not when the history is read.
+
+        One conversation id hosts text and then voice: only the leg *after* a
+        call gets a new id. Resolving the medium at read time therefore
+        relabels every earlier message the moment the leg turns to voice.
+        """
+        self.messages.append({"role": role, "text": text, "medium": self.medium})
 
 
 class ConversationStore:
@@ -52,6 +58,19 @@ class ConversationStore:
                 leg = Leg(conversation_id=conversation_id, medium=medium)
                 self._legs[conversation_id] = leg
             return leg
+
+    def begin(self, conversation_id: str, medium: str) -> None:
+        """A new medium is starting on this conversation id.
+
+        Called when a call is placed for a conversation that was text, so
+        messages from here on are stamped as voice.
+        """
+        with self._lock:
+            leg = self._legs.get(conversation_id)
+            if leg is None:
+                leg = Leg(conversation_id=conversation_id, medium=medium)
+                self._legs[conversation_id] = leg
+            leg.medium = medium
 
     def capture_leg(self, conversation_id: str, medium: str) -> bool:
         """End a leg and write its record. Truthy only once it is durable.
@@ -93,7 +112,9 @@ class ConversationStore:
         for cid in sorted(self._legs, key=self._sort_key):
             if self.root_id(cid) == root:
                 leg = self._legs[cid]
-                messages += [dict(m, medium=leg.medium) for m in leg.messages]
+                messages += [
+                    {**m, "medium": m.get("medium") or leg.medium} for m in leg.messages
+                ]
         return messages
 
     # ── ids ──────────────────────────────────────────────────────────
