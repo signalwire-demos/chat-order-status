@@ -17,11 +17,12 @@ Run:
 import logging
 
 from dotenv import load_dotenv
+from fastapi.responses import HTMLResponse
 from signalwire.ai_chat import AIChatClient, ChatGateway, HandoffRouter
 
 import config
 from agent import OrderStatusAgent
-from order_status import ConversationStore, OrderBook
+from order_status import ConversationStore, OrderBook, landing
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, force=True)
@@ -70,6 +71,16 @@ def build(orders=None, store=None):
         from fastapi.responses import RedirectResponse
 
         return RedirectResponse("/chat/", status_code=307)
+
+    @fastapi_app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def _index():
+        return landing.render(
+            orders=orders, base_url=config.PUBLIC_URL, key=config.CHAT_PUBLIC_KEY
+        )
+
+    @fastapi_app.get("/health", include_in_schema=False)
+    async def _health():
+        return {"status": "healthy", "agent": "order-status"}
 
     # What the agent has established, whichever medium established it. The
     # page renders this so a viewer can watch it survive the switch, which is

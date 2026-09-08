@@ -115,3 +115,34 @@ def test_lookup_remembers_for_the_other_medium(built):
 def test_lookup_without_a_conversation_id_does_not_raise(built):
     agent = built[0]
     assert agent._lookup({"order_number": "4417"}, {})["response"]
+
+
+# ── the landing page ─────────────────────────────────────────────────
+
+def test_root_is_not_the_catch_all(client):
+    """/ used to return 200 {"error": "Invalid route"}, which reads as broken."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Invalid route" not in response.text
+
+
+def test_root_lists_the_routes_it_documents(client):
+    body = client.get("/").text
+    for path in ("/demo/", "/state/", "/swml", "/chat/", "/chat/handoff", "/chat/escalate", "/chat/say"):
+        assert path in body
+
+
+def test_root_lists_the_orders(client):
+    body = client.get("/").text
+    for number in ("4417", "5120", "6001"):
+        assert number in body
+
+
+def test_root_is_honest_about_what_is_untested(client):
+    # The switch is the hero of this demo and it has not run end to end.
+    assert "not exercised" in client.get("/").text
+
+
+def test_health_route(client):
+    assert client.get("/health").json()["status"] == "healthy"
