@@ -1,0 +1,12 @@
+{
+  "name": "chat-order-status",
+  "description": "One agent, answering by text and by voice, with context across the switch",
+  "env": {
+    "PUBLIC_URL": { "description": "Public base URL of this service" },
+    "SIGNALWIRE_PROJECT_ID": { "description": "SignalWire project id" },
+    "SIGNALWIRE_API_TOKEN": { "description": "SignalWire API token" },
+    "SIGNALWIRE_SPACE": { "description": "your-space.signalwire.com" },
+    "CHAT_PUBLIC_KEY": { "description": "Publishable key the page presents" },
+    "CHAT_HANDLE_SECRET": { "description": "HMAC secret for signing handles" }
+  }
+}

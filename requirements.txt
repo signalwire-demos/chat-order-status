@@ -1,0 +1,4 @@
+signalwire-sdk>=3.4.1
+python-dotenv>=1.0.0
+gunicorn>=23.0.0
+uvicorn>=0.34.2

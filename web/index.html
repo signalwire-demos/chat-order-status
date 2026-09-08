@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order desk</title>
+<style>
+  :root { color-scheme: light dark; --line: rgba(128,128,140,.28); }
+  body { font: 15px/1.6 system-ui, sans-serif; margin: 0; padding: 24px;
+         display: grid; gap: 20px; grid-template-columns: 1fr; max-width: 940px; }
+  @media (min-width: 800px) { body { grid-template-columns: 1.4fr 1fr; } }
+  h1 { font-size: 1.15rem; margin: 0 0 4px; grid-column: 1 / -1; }
+  .panel { border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  #log { min-height: 240px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); max-width: 80%; }
+  .msg.user { align-self: flex-end; }
+  .msg .who { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; opacity: .6; }
+  form { display: flex; gap: 8px; margin-top: 14px; }
+  input[type=text] { flex: 1; padding: 9px 12px; border-radius: 8px;
+                     border: 1px solid var(--line); background: transparent; color: inherit; font: inherit; }
+  button { padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line);
+           background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  pre { margin: 0; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+  .hint { font-size: 12.5px; opacity: .7; }
+</style>
+</head>
+<body>
+
+<h1>Order desk</h1>
+
+<div class="panel">
+  <div id="log"></div>
+  <form id="composer">
+    <input type="text" id="message" placeholder="Where is order 4417?" autocomplete="off">
+    <button type="submit">Send</button>
+  </form>
+  <p class="hint">Try 4417, 5120 or 6001. Ask about anything else and it will decline, on purpose.</p>
+</div>
+
+<div class="panel">
+  <strong>What the agent knows</strong>
+  <p class="hint">
+    This is the state that survives a move between text and voice. Establish
+    something here, switch medium, and it is still here.
+  </p>
+  <pre id="state">{}</pre>
+</div>
+
+<script>
+// The gateway's contract: POST {method, message, handle?} with the
+// publishable key as a bearer token. A newly minted handle comes back in the
+// X-Chat-Handle header, before the body, so it can arrive ahead of a slow turn.
+const GATEWAY = "/chat/";
+const KEY = new URLSearchParams(location.search).get("key") || "demo-key";
+const CONVERSATION = new URLSearchParams(location.search).get("c") || "web-demo";
+
+let handle = null;
+const log = document.getElementById("log");
+
+function add(who, text) {
+  const el = document.createElement("div");
+  el.className = "msg " + (who === "you" ? "user" : "agent");
+  el.innerHTML = '<div class="who"></div><div class="body"></div>';
+  el.querySelector(".who").textContent = who;
+  el.querySelector(".body").textContent = text;
+  log.append(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function refreshState() {
+  try {
+    const res = await fetch(`/state/${encodeURIComponent(CONVERSATION)}`);
+    document.getElementById("state").textContent =
+      JSON.stringify(await res.json(), null, 2);
+  } catch (err) {
+    document.getElementById("state").textContent = "state unavailable";
+  }
+}
+
+document.getElementById("composer").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = document.getElementById("message");
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = "";
+  add("you", message);
+
+  const body = { method: "chat", message };
+  if (handle) body.handle = handle;
+
+  try {
+    const res = await fetch(GATEWAY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY}` },
+      body: JSON.stringify(body),
+    });
+    const minted = res.headers.get("X-Chat-Handle");
+    if (minted) handle = minted;
+
+    const text = await res.text();
+    let reply = text;
+    try {
+      const parsed = JSON.parse(text);
+      reply = parsed?.result?.response ?? parsed?.error?.message ?? text;
+    } catch (_) { /* the service pads slow turns with whitespace */ }
+    add("agent", reply);
+  } catch (err) {
+    add("agent", `Could not reach the gateway: ${err.message}`);
+  }
+  refreshState();
+});
+
+refreshState();
+</script>
+</body>
+</html>
