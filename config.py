@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 
@@ -46,6 +47,23 @@ ALLOWED_ORIGINS = tuple(
     o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()
 )
 
-# The SWML the gateway always sends upstream. Never taken from the browser:
-# whoever could name it would pick which agent runs and which project pays.
-CONFIG_URL = f"{PUBLIC_URL}/swml"
+# The agent's /swml route is behind basic auth, and the AI Chat service
+# fetches config_url with no credentials of its own, so an unauthenticated URL
+# comes back 401 and the gateway answers "Configuration error" with nothing
+# saying why. Embed the credentials when they are set.
+SWML_BASIC_AUTH_USER = os.environ.get("SWML_BASIC_AUTH_USER", "")
+SWML_BASIC_AUTH_PASSWORD = os.environ.get("SWML_BASIC_AUTH_PASSWORD", "")
+
+
+def config_url(public_url: str, user: str = "", password: str = "") -> str:
+    """The SWML URL the gateway sends upstream, with credentials if we have them."""
+    if not (user and password):
+        return f"{public_url}/swml"
+    scheme, _, rest = public_url.partition("://")
+    creds = f"{quote(user, safe='')}:{quote(password, safe='')}"
+    return f"{scheme}://{creds}@{rest}/swml"
+
+
+# Never taken from the browser: whoever could name it would pick which agent
+# runs and which project pays.
+CONFIG_URL = config_url(PUBLIC_URL, SWML_BASIC_AUTH_USER, SWML_BASIC_AUTH_PASSWORD)
