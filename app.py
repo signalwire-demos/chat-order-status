@@ -17,7 +17,7 @@ Run:
 import logging
 
 from dotenv import load_dotenv
-from signalwire.ai_chat import ChatGateway, HandoffRouter
+from signalwire.ai_chat import AIChatClient, ChatGateway, HandoffRouter
 
 import config
 from agent import OrderStatusAgent
@@ -35,11 +35,16 @@ def build(orders=None, store=None):
 
     agent = OrderStatusAgent(orders=orders, store=store, host=config.HOST, port=config.PORT)
 
+    # Build the chat client explicitly rather than letting the gateway infer
+    # it, so the space value is normalised in exactly one place. See config.py.
+    client = AIChatClient(space=config.SPACE_NAME) if config.SPACE_NAME else None
+
     gateway = ChatGateway(
         config_url=config.CONFIG_URL,
         key=config.CHAT_PUBLIC_KEY,
         allowed_origins=config.ALLOWED_ORIGINS,
         secret=config.CHAT_HANDLE_SECRET,
+        client=client,
     )
 
     handoff = HandoffRouter(
