@@ -44,3 +44,31 @@ def test_config_url_escapes_credentials():
 def test_config_url_needs_both_halves():
     assert "@" not in config.config_url("https://x.example.com", "agent", "")
     assert "@" not in config.config_url("https://x.example.com", "", "s3cret")
+
+
+# ── origins ──────────────────────────────────────────────────────────
+
+def test_the_apps_own_origin_is_always_allowed():
+    # The demo page is served by this app, so its origin must be on the list
+    # or the page is refused by the gateway it is talking to.
+    assert config.allowed_origins("https://ai-chat-demo.signalwire.me") == (
+        "https://ai-chat-demo.signalwire.me",
+    )
+
+
+def test_extra_origins_are_added():
+    origins = config.allowed_origins("https://a.example.com", "https://b.example.com")
+    assert origins == ("https://a.example.com", "https://b.example.com")
+
+
+def test_trailing_slashes_are_stripped():
+    assert config.allowed_origins("https://a.example.com/") == ("https://a.example.com",)
+
+
+def test_duplicates_collapse():
+    origins = config.allowed_origins("https://a.example.com", "https://a.example.com/")
+    assert origins == ("https://a.example.com",)
+
+
+def test_empty_public_url_yields_nothing():
+    assert config.allowed_origins("", "") == ()

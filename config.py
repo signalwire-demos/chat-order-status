@@ -43,9 +43,25 @@ def space_host(value: str) -> str:
 SPACE_NAME = space_name(SIGNALWIRE_SPACE)
 SPACE_HOST = space_host(SIGNALWIRE_SPACE)
 
-ALLOWED_ORIGINS = tuple(
-    o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()
-)
+def allowed_origins(public_url: str, extra: str = "") -> tuple[str, ...]:
+    """Origins the gateway will accept.
+
+    The gateway allows localhost and nothing else unless told, which is the
+    right default for a library but wrong for an app that serves its own demo
+    page: the page and the gateway share an origin, so that origin has to be
+    on the list or the page gets "origin not allowed" from itself.
+    """
+    origins = []
+    if public_url:
+        origins.append(public_url.rstrip("/"))
+    origins += [o.strip().rstrip("/") for o in (extra or "").split(",") if o.strip()]
+    seen = {}
+    for origin in origins:
+        seen[origin] = None
+    return tuple(seen)
+
+
+ALLOWED_ORIGINS = allowed_origins(PUBLIC_URL, os.environ.get("ALLOWED_ORIGINS", ""))
 
 # The agent's /swml route is behind basic auth, and the AI Chat service
 # fetches config_url with no credentials of its own, so an unauthenticated URL
