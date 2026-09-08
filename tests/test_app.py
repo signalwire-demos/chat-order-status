@@ -133,10 +133,14 @@ def test_root_lists_the_routes_it_documents(client):
         assert path in body
 
 
-def test_root_lists_the_orders(client):
+def test_root_lists_the_orders(built, client):
+    """Whatever is in the book, not a hardcoded list that can drift."""
     body = client.get("/").text
-    for number in ("4417", "5120", "6001"):
-        assert number in body
+    orders = built[0].orders
+    assert len(list(orders)) > 0
+    for order in orders:
+        assert order.number in body
+        assert order.status in body
 
 
 def test_root_is_honest_about_what_is_untested(client):

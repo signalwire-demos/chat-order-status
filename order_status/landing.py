@@ -54,8 +54,7 @@ def render(*, orders, base_url: str, key: str) -> str:
     order_rows = "\n".join(
         f"<tr><td>{html.escape(o.number)}</td><td>{html.escape(o.status)}</td>"
         f"<td>{html.escape(o.eta)}</td><td>{html.escape(o.address)}</td></tr>"
-        for o in (orders.get(n) for n in ("4417", "5120", "6001"))
-        if o is not None
+        for o in orders
     )
     base = html.escape(base_url or "")
     k = html.escape(key or "")

@@ -55,6 +55,10 @@ class OrderBook:
     def __len__(self) -> int:
         return len(self._orders)
 
+    def __iter__(self):
+        """Every order, in number order, so callers need no hardcoded list."""
+        return iter(sorted(self._orders.values(), key=lambda o: o.number))
+
     def get(self, number: str) -> Order | None:
         return self._orders.get(str(number).strip())
 

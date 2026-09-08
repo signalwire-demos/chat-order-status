@@ -75,3 +75,8 @@ def test_loads_from_a_json_file(tmp_path):
     path = tmp_path / "orders.json"
     path.write_text(json.dumps(BOOK))
     assert len(OrderBook(path)) == 1
+
+
+def test_orderbook_is_iterable_in_number_order():
+    book = OrderBook({"6001": {}, "4417": {}, "5120": {}})
+    assert [o.number for o in book] == ["4417", "5120", "6001"]
