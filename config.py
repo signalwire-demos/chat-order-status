@@ -14,6 +14,15 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8080"))
 
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:8080").rstrip("/")
+
+# The SDK's AgentBase reads SWML_PROXY_URL_BASE -- not PUBLIC_URL -- when it
+# builds the SWAIG and post_prompt callback URLs it hands the platform. Left
+# unset it infers the base from the request headers, which behind a TLS
+# terminating proxy loses the scheme and advertises http:// callbacks for an
+# https service. We already know the public URL, so set it here rather than
+# ask the operator to configure the same value twice and keep the two in step.
+# setdefault, so an explicitly exported value still wins.
+os.environ.setdefault("SWML_PROXY_URL_BASE", PUBLIC_URL)
 CHAT_PUBLIC_KEY = os.environ.get("CHAT_PUBLIC_KEY", "demo-key")
 CHAT_HANDLE_SECRET = os.environ.get("CHAT_HANDLE_SECRET") or None
 ORDERS_FILE = Path(os.environ.get("ORDERS_FILE", ROOT / "orders.json"))

@@ -51,6 +51,7 @@ process, the page looks broken.
 | `FROM_NUMBER` | for voice | A number on your space, used as caller id when dialling |
 | `DEFAULT_DIAL_TO` | no | Fallback destination if the page does not pass one |
 | `ALLOWED_ORIGINS` | no | Extra origins, comma separated. `PUBLIC_URL` is always allowed |
+| `SWML_PROXY_URL_BASE` | no | Base the SDK uses for SWAIG and `post_prompt` callback URLs. Defaults to `PUBLIC_URL`; set it only to point callbacks somewhere else |
 
 ### `SIGNALWIRE_SPACE` takes either form
 
