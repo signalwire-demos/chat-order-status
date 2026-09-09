@@ -46,7 +46,12 @@ def build(orders=None, store=None, calls=None):
         calls = CallControl(
             client=rest,
             from_number=config.FROM_NUMBER,
-            swml_url=f"{config.PUBLIC_URL}/swml",
+            # CONFIG_URL, not a bare PUBLIC_URL/swml: /swml is behind basic auth,
+            # so an uncredentialed URL makes the platform fetch, get 401, and hang
+            # up the moment the callee answers. config_url() embeds the same
+            # credentials the chat gateway already uses, and degrades to the bare
+            # URL when no auth is configured.
+            swml_url=config.CONFIG_URL,
         )
 
     agent = OrderStatusAgent(orders=orders, store=store, host=config.HOST, port=config.PORT)
