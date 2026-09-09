@@ -150,3 +150,27 @@ def test_root_is_honest_about_what_is_untested(client):
 
 def test_health_route(client):
     assert client.get("/health").json()["status"] == "healthy"
+
+
+# ── brand ────────────────────────────────────────────────────────────
+
+def test_landing_page_is_on_brand(client):
+    from brandcheck import assert_headings_are_neutral, assert_on_brand, assert_themes, assert_typography
+
+    body = client.get("/").text
+    assert_on_brand(body)
+    assert_typography(body)
+    assert_themes(body)
+    assert_headings_are_neutral(body)
+
+
+def test_demo_page_is_on_brand():
+    from pathlib import Path
+
+    from brandcheck import assert_headings_are_neutral, assert_on_brand, assert_themes, assert_typography
+
+    body = (Path(__file__).resolve().parents[1] / "web" / "index.html").read_text()
+    assert_on_brand(body)
+    assert_typography(body)
+    assert_themes(body)
+    assert_headings_are_neutral(body)
